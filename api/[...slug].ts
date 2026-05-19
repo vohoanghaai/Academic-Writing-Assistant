@@ -1,4 +1,4 @@
-import app from '../server';
+import app from '../app';
 
 export const config = {
   api: {
@@ -6,4 +6,9 @@ export const config = {
   },
 };
 
-export default app;
+export default (req: any, res: any) => {
+  if (req.url && !req.url.startsWith('/api')) {
+    req.url = '/api' + (req.url.startsWith('/') ? '' : '/') + req.url;
+  }
+  return app(req, res);
+};
