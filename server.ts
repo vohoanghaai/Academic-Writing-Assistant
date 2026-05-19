@@ -64,16 +64,19 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     let text = '';
     const buffer = req.file.buffer;
     
-    if (req.file.mimetype === 'application/pdf') {
+    const filename = req.file.originalname.toLowerCase();
+    
+    if (filename.endsWith('.pdf') || req.file.mimetype === 'application/pdf') {
       const data = await pdfParse(buffer);
       text = data.text;
     } else if (
+      filename.endsWith('.docx') || filename.endsWith('.doc') || 
       req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       req.file.mimetype === 'application/msword'
     ) {
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
-    } else if (req.file.mimetype === 'text/plain') {
+    } else if (filename.endsWith('.txt') || req.file.mimetype?.startsWith('text/')) {
       text = buffer.toString('utf-8');
     } else {
       return res.status(400).json({ error: 'Unsupported file format. Please upload PDF, DOCX, or TXT.' });
