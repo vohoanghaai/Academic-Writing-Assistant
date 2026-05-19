@@ -1,0 +1,6 @@
+{
+  "name": "Academic Writing Assistant",
+  "description": "Professional tool for AI detection, humanization, plagiarism checking, and responsible paraphrasing for academic success.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
