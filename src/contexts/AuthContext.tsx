@@ -1,5 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import Cookies from 'js-cookie';
+
+const getCookie = (name: string) => {
+  if (typeof document === 'undefined') return undefined;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(';').shift();
+  return undefined;
+};
 
 interface User {
   username: string;
@@ -24,9 +31,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   useEffect(() => {
-    const session = Cookies.get('user_session');
+    let session = getCookie('user_session');
     if (session) {
       try {
+        session = decodeURIComponent(session);
         setUser(JSON.parse(session));
       } catch (e) {
         console.error('Failed to parse user session', e);
