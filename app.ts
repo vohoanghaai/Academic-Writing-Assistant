@@ -1,11 +1,15 @@
-import express from 'express';
+import * as expressModule from 'express';
 import path from 'path';
-import dotenv from 'dotenv';
-import multer from 'multer';
-import cookieParser from 'cookie-parser';
+import * as dotenvModule from 'dotenv';
+import * as multerModule from 'multer';
+import * as cookieParserModule from 'cookie-parser';
 import * as mammoth from 'mammoth';
 import * as pdfParseModule from 'pdf-parse';
 
+const express = (expressModule as any).default || expressModule;
+const dotenv = (dotenvModule as any).default || dotenvModule;
+const multer = (multerModule as any).default || multerModule;
+const cookieParser = (cookieParserModule as any).default || cookieParserModule;
 const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 
 dotenv.config();
