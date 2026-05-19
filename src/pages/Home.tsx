@@ -1,3 +1,4 @@
+import React from 'react';
 import { motion } from 'framer-motion';
 import { ShieldCheck, Search, UserRound, FileCheck, Type, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';

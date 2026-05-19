@@ -106,18 +106,31 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Language>('vi'); // default vi as per some context but let's do default from localStorage
+  const [lang, setLangState] = useState<Language>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('app_lang');
+      if (saved === 'en' || saved === 'vi') return saved;
+      
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; app_lang=`);
+      if (parts.length === 2) {
+        const savedCookie = parts.pop()?.split(';').shift();
+        if (savedCookie === 'en' || savedCookie === 'vi') return savedCookie as Language;
+      }
+    }
+    return 'en'; // default en
+  });
   
   useEffect(() => {
-    const saved = localStorage.getItem('app_lang') as Language;
-    if (saved && (saved === 'en' || saved === 'vi')) {
-      setLangState(saved);
-    }
+    // keeping this just in case, but initial state already handles it
   }, []);
 
   const setLang = (newLang: Language) => {
     setLangState(newLang);
-    localStorage.setItem('app_lang', newLang);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('app_lang', newLang);
+      document.cookie = `app_lang=${newLang}; path=/; max-age=31536000`;
+    }
   };
 
   const t = (key: TransKey): string => {
