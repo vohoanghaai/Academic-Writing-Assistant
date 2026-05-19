@@ -1,14 +1,12 @@
 import express from 'express';
 import path from 'path';
-import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import * as mammoth from 'mammoth';
-import { createRequire } from 'module';
+import * as pdfParseModule from 'pdf-parse';
 
-const require = createRequire(import.meta.url);
-const pdfParse = require('pdf-parse');
+const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 
 dotenv.config();
 
@@ -36,6 +34,7 @@ if (process.env.GOOGLE_CREDENTIALS_JSON) {
   }
 
   ai = new GoogleGenAI({
+    // @ts-ignore
     vertexai: {
       project: projectId || process.env.VERTEX_PROJECT_ID || '',
       location: process.env.VERTEX_LOCATION || 'us-central1'
@@ -265,23 +264,32 @@ app.delete('/api/reports', (req, res) => {
 
 // Vite middleware for development
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    // Note: Vercel serves static files from dist automatically. 
+    // This is mostly for our Cloud Run / local prod build
+    if (!process.env.VERCEL) {
+      const distPath = path.join(process.cwd(), 'dist');
+      app.use(express.static(distPath));
+      app.get('*', (req, res) => {
+        res.sendFile(path.join(distPath, 'index.html'));
+      });
+    }
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  if (!process.env.VERCEL) {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;
