@@ -260,7 +260,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             {t('copyright')}
           </p>
           <p className="text-slate-400 text-xs mt-4 italic px-8 max-w-2xl mx-auto">
-            {t('disclaimer')}
+            {t('disclaimer1')}<br />{t('disclaimer2')}
           </p>
         </div>
       </footer>
