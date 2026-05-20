@@ -82,9 +82,9 @@ export default function Paraphrase() {
         </div>
 
         {/* Input */}
-        <div className="lg:row-start-2 lg:col-start-1 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-0 border-t-8 border-t-orange-500">
-            <div className="p-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap gap-2 items-center">
+        <div className="lg:row-start-2 lg:col-start-1 space-y-6 flex flex-col h-full">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-0 border-t-8 border-t-orange-500 flex flex-col lg:h-[600px]">
+            <div className="p-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap gap-2 items-center shrink-0">
               {modes.map((m) => (
                 <button
                   key={m.id}
@@ -100,9 +100,9 @@ export default function Paraphrase() {
               ))}
             </div>
 
-            <div className="relative group focus-within:ring-4 focus-within:ring-indigo-100 transition-all rounded-b-[2.5rem]">
+            <div className="relative group focus-within:ring-4 focus-within:ring-indigo-100 transition-all rounded-b-[2.5rem] flex-1 flex flex-col min-h-[400px]">
               <textarea
-                className="w-full h-[500px] p-8 pb-28 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 bg-transparent"
+                className="w-full h-full flex-1 p-8 pb-28 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 bg-transparent"
                 placeholder="Paste text to paraphrase responsibly..."
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -154,9 +154,9 @@ export default function Paraphrase() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full"
+                className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col lg:h-[600px] min-h-[500px]"
               >
-                <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 shrink-0">
                   <span className="font-bold text-slate-600 text-sm">Enhanced Version</span>
                   <div className="flex gap-2">
                     <button onClick={copyToClipboard} className="p-2 hover:bg-white rounded-lg transition-colors" title="Copy">
@@ -172,7 +172,7 @@ export default function Paraphrase() {
                   <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{result.paraphrasedText}</p>
                 </div>
 
-                <div className="p-6 bg-indigo-50/50 border-t border-indigo-100 space-y-4">
+                <div className="p-6 bg-indigo-50/50 border-t border-indigo-100 space-y-4 shrink-0 overflow-y-auto max-h-[300px] custom-scrollbar">
                   <div className="flex items-start gap-3 p-4 bg-white rounded-2xl shadow-sm border border-indigo-100">
                     <Info className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
                     <div className="space-y-1">
@@ -194,7 +194,9 @@ export default function Paraphrase() {
                       </div>
                     </div>
                   )}
+                </div>
 
+                <div className="p-6 bg-slate-50 border-t border-slate-100 shrink-0">
                   <button 
                     onClick={() => navigate('/plagiarism', { state: { text: result.paraphrasedText } })}
                     className="w-full bg-white border border-indigo-200 text-indigo-600 py-3 rounded-xl text-sm font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"

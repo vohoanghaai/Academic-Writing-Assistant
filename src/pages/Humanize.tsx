@@ -81,9 +81,9 @@ export default function Humanize() {
         </div>
 
         {/* Input */}
-        <div className="lg:row-start-2 lg:col-start-1 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-0 border-t-8 border-t-emerald-500">
-            <div className="p-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap gap-2 items-center">
+        <div className="lg:row-start-2 lg:col-start-1 space-y-6 flex flex-col h-full">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-0 border-t-8 border-t-emerald-500 flex flex-col lg:h-[600px]">
+            <div className="p-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap gap-2 items-center shrink-0">
               {tones.map((t) => (
                 <button
                   key={t.id}
@@ -99,9 +99,9 @@ export default function Humanize() {
               ))}
             </div>
 
-            <div className="relative group focus-within:ring-4 focus-within:ring-indigo-100 transition-all rounded-b-[2.5rem]">
+            <div className="relative group focus-within:ring-4 focus-within:ring-indigo-100 transition-all rounded-b-[2.5rem] flex-1 flex flex-col min-h-[400px]">
               <textarea
-                className="w-full h-[500px] p-8 pb-28 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 bg-transparent"
+                className="w-full h-full flex-1 p-8 pb-28 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 bg-transparent"
                 placeholder="Paste text to humanize..."
                 value={text}
                 onChange={(e) => setText(e.target.value)}
@@ -153,9 +153,9 @@ export default function Humanize() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col h-full"
+                className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden flex flex-col lg:h-[600px] min-h-[500px]"
               >
-                <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50 shrink-0">
                   <span className="font-bold text-slate-600 text-sm">Refined Output</span>
                   <div className="flex gap-2">
                     <button onClick={copyToClipboard} className="p-2 hover:bg-white rounded-lg transition-colors" title="Copy">
@@ -167,25 +167,27 @@ export default function Humanize() {
                   </div>
                 </div>
 
-                <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
-                  <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{result.humanizedText}</p>
+                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+                  <div className="p-6">
+                    <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{result.humanizedText}</p>
+                  </div>
+
+                  {result.warnings?.length > 0 && (
+                    <div className="p-6 bg-amber-50 border-t border-amber-100 m-4 mt-auto rounded-3xl shrink-0">
+                      <h5 className="flex items-center gap-2 text-amber-700 font-bold text-sm mb-2">
+                        <AlertTriangle className="w-4 h-4" />
+                        Academic Advice
+                      </h5>
+                      <ul className="text-xs text-amber-600 space-y-1 list-disc list-inside">
+                        {result.warnings.map((w: string, i: number) => (
+                          <li key={i}>{w}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
 
-                {result.warnings?.length > 0 && (
-                  <div className="p-6 bg-amber-50 border-t border-amber-100 m-4 rounded-3xl">
-                    <h5 className="flex items-center gap-2 text-amber-700 font-bold text-sm mb-2">
-                      <AlertTriangle className="w-4 h-4" />
-                      Academic Advice
-                    </h5>
-                    <ul className="text-xs text-amber-600 space-y-1 list-disc list-inside">
-                      {result.warnings.map((w: string, i: number) => (
-                        <li key={i}>{w}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                <div className="p-6 bg-indigo-50 flex gap-4">
+                <div className="p-6 bg-indigo-50 flex gap-4 shrink-0 border-t border-slate-100">
                   <button 
                     onClick={() => navigate('/ai-detect', { state: { text: result.humanizedText } })}
                     className="flex-1 bg-white border border-indigo-200 text-indigo-600 py-3 rounded-xl text-sm font-bold hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2"
