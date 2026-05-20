@@ -23,10 +23,10 @@ import type { GoogleGenAI } from '@google/genai';
 import fs from 'fs';
 
 // Setup polyfills for pdf-parse / pdfjs-dist internally if needed
-if (typeof global !== 'undefined') {
-  (global as any).DOMMatrix = (global as any).DOMMatrix || class DOMMatrix {};
-  (global as any).Path2D = (global as any).Path2D || class Path2D {};
-  (global as any).ImageData = (global as any).ImageData || class ImageData {};
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).DOMMatrix = (globalThis as any).DOMMatrix || class DOMMatrix {};
+  (globalThis as any).Path2D = (globalThis as any).Path2D || class Path2D {};
+  (globalThis as any).ImageData = (globalThis as any).ImageData || class ImageData {};
 }
 
 let ai: any = null;
