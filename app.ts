@@ -144,82 +144,144 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// --- Utility: Chunk Processor ---
+async function processInChunks(text: string, processChunk: (chunk: string, index: number, total: number) => Promise<any>, maxChunkSize: number = 3000) {
+  const chunks: string[] = [];
+  let currentChunk = '';
+  const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  
+  for (const sentence of sentences) {
+    if ((currentChunk + sentence).length > maxChunkSize && currentChunk.length > 0) {
+      chunks.push(currentChunk);
+      currentChunk = '';
+    }
+    currentChunk += sentence;
+  }
+  if (currentChunk.trim().length > 0) chunks.push(currentChunk);
+
+  const results: any[] = [];
+  for (let i = 0; i < chunks.length; i++) {
+    // We already use generateContentWithFallback inside processChunk, so if one chunk fails
+    // it will automatically retry across models. Only if ALL 4 models fail for this specific chunk
+    // will it throw an error here, at which point we can still return partial results if needed,
+    // or let it throw. The user requested: "khi nào cả 4 model ko dc mới dùng và báo lỗi".
+    // "báo lỗi" means throw the error.
+    console.log(`[Chunking] Processing chunk ${i + 1}/${chunks.length}...`);
+    const res = await processChunk(chunks[i], i, chunks.length);
+    results.push(res);
+  }
+  return results;
+}
+
 // --- AI Detect Endpoint ---
 app.post('/api/ai-detect', async (req, res) => {
   const { text } = req.body;
   if (!text) return res.status(400).json({ error: 'Text is required' });
 
   try {
-    const prompt = `You are a forensic linguistic analyzer determining the probability of text being AI-generated vs. human-written. 
-    To ensure deterministic, highly consistent results across multiple evaluations of the same text, you MUST follow this precise mathematical scoring rubric.
-
-    CRITICAL: Evaluate the text strictly against these 4 metrics. Start with a baseline AI score of 50, then adjust based on evidence:
-
-    METRIC 1: Burstiness & Sentence Variance (Max impact: ±25)
-    - AI creates uniform sentence lengths. Humans mix very short (1-5 words) with very long sentences.
-    - If uniform/robotic: add up to +25 AI score.
-    - If highly varied/erratic lengths: subtract up to -25 AI score (more human).
-
-    METRIC 2: Lexical Predictability & Vocabulary (Max impact: ±30)
-    - AI overuses specific transition words and academic fluff.
-    - Check for AI catchphrases: "delve", "tapestry", "fosters", "testament", "realm", "crucial", "multifaceted", "seamlessly", "underscores", "in conclusion", "it is important to note".
-    - If 2+ catchphrases present: add +20 to +30 AI score.
-    - If phrasing is highly idiosyncratic, uses conversational slang, or unusual idioms: subtract -20 to -30 AI score (more human).
-    - If text is short and simple with no markers: 0 adjustment.
-
-    METRIC 3: Structural Symmetry (Max impact: ±20)
-    - AI loves perfectly balanced lists, matching paragraph lengths, and predictable "Introduction, Body, Conclusion" structures.
-    - If perfectly balanced and formulaic: add +10 to +20 AI score.
-    - If paragraphs are asymmetrical, structure meanders, or formatting is messy: subtract -10 to -20 AI score.
-
-    METRIC 4: Emotional Depth & Subjectivity (Max impact: ±25)
-    - AI text lacks genuine personal experience, faking it with vague generalities.
-    - If purely informational/neutral without true subjective vulnerability: add +10 to +25 AI score.
-    - If it contains highly specific personal anecdotes, informal formatting, or raw emotion: subtract -15 to -25 AI score.
-
-    SCORING RULES:
-    1. Start at Base AI Score = 50.
-    2. Apply the adjustments from the 4 metrics.
-    3. Final AI Score must be capped between 0 and 100.
-    4. Human Score = 100 - Final AI Score.
-    5. Your 'explanation' MUST be a step-by-step calculation showing exactly how you applied the 4 metrics. Show the math (+X for Metric 1, -Y for Metric 2, etc, Total AI Score: Z).
-    6. Risk Level = 'High' if AI > 70, 'Moderate' if 40-70, 'Low' if < 40.
-    7. Confidence = how clearly the signals match the rubric (0-100).
-
-    Text to Analyze:
-    ${text.slice(0, 10000)}`;
-
     const { Type } = await import('@google/genai');
     const ai = await getAI();
-    const response = await generateContentWithFallback(ai, {
-      contents: prompt,
-      config: { 
-        responseMimeType: 'application/json',
-        temperature: 0.0, // Strictly deterministic
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            explanation: { type: Type.STRING },
-            humanScore: { type: Type.NUMBER },
-            aiScore: { type: Type.NUMBER },
-            riskLevel: { type: Type.STRING },
-            confidence: { type: Type.NUMBER },
-            segments: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  text: { type: Type.STRING },
-                  reason: { type: Type.STRING }
+
+    const results = await processInChunks(text, async (chunk) => {
+      const prompt = `You are a forensic linguistic analyzer determining the probability of text being AI-generated vs. human-written. 
+      To ensure deterministic, highly consistent results across multiple evaluations of the same text, you MUST follow this precise mathematical scoring rubric.
+
+      CRITICAL: Evaluate the text strictly against these 4 metrics. Start with a baseline AI score of 50, then adjust based on evidence:
+
+      METRIC 1: Burstiness & Sentence Variance (Max impact: ±25)
+      - AI creates uniform sentence lengths. Humans mix very short (1-5 words) with very long sentences.
+      - If uniform/robotic: add up to +25 AI score.
+      - If highly varied/erratic lengths: subtract up to -25 AI score (more human).
+
+      METRIC 2: Lexical Predictability & Vocabulary (Max impact: ±30)
+      - AI overuses specific transition words and academic fluff.
+      - Check for AI catchphrases: "delve", "tapestry", "fosters", "testament", "realm", "crucial", "multifaceted", "seamlessly", "underscores", "in conclusion", "it is important to note".
+      - If 2+ catchphrases present: add +20 to +30 AI score.
+      - If phrasing is highly idiosyncratic, uses conversational slang, or unusual idioms: subtract -20 to -30 AI score (more human).
+      - If text is short and simple with no markers: 0 adjustment.
+
+      METRIC 3: Structural Symmetry (Max impact: ±20)
+      - AI loves perfectly balanced lists, matching paragraph lengths, and predictable "Introduction, Body, Conclusion" structures.
+      - If perfectly balanced and formulaic: add +10 to +20 AI score.
+      - If paragraphs are asymmetrical, structure meanders, or formatting is messy: subtract -10 to -20 AI score.
+
+      METRIC 4: Emotional Depth & Subjectivity (Max impact: ±25)
+      - AI text lacks genuine personal experience, faking it with vague generalities.
+      - If purely informational/neutral without true subjective vulnerability: add +10 to +25 AI score.
+      - If it contains highly specific personal anecdotes, informal formatting, or raw emotion: subtract -15 to -25 AI score.
+
+      SCORING RULES:
+      1. Start at Base AI Score = 50.
+      2. Apply the adjustments from the 4 metrics.
+      3. Final AI Score must be capped between 0 and 100.
+      4. Human Score = 100 - Final AI Score.
+      5. Your 'explanation' MUST be a step-by-step calculation showing exactly how you applied the 4 metrics. Show the math (+X for Metric 1, -Y for Metric 2, etc, Total AI Score: Z).
+      6. Risk Level = 'High' if AI > 70, 'Moderate' if 40-70, 'Low' if < 40.
+      7. Confidence = how clearly the signals match the rubric (0-100).
+
+      Text to Analyze:
+      ${chunk}`;
+
+      const response = await generateContentWithFallback(ai, {
+        contents: prompt,
+        config: { 
+          responseMimeType: 'application/json',
+          temperature: 0.0, // Strictly deterministic
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              explanation: { type: Type.STRING },
+              humanScore: { type: Type.NUMBER },
+              aiScore: { type: Type.NUMBER },
+              riskLevel: { type: Type.STRING },
+              confidence: { type: Type.NUMBER },
+              segments: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    text: { type: Type.STRING },
+                    reason: { type: Type.STRING }
+                  }
                 }
               }
             }
           }
         }
-      }
+      });
+      return JSON.parse(response.text?.replace(/```json|```/g, '').trim() || '{}');
+    }, 10000); // 10000 char chunks (~2000-2500 words)
+
+    // Aggregate results
+    let totalAiScore = 0;
+    let totalHumanScore = 0;
+    let totalConfidence = 0;
+    let combinedExplanation = '';
+    let allSegments: any[] = [];
+    
+    for (let i = 0; i < results.length; i++) {
+        const resObj = results[i];
+        totalAiScore += resObj.aiScore || 0;
+        totalHumanScore += resObj.humanScore || 0;
+        totalConfidence += resObj.confidence || 0;
+        if (results.length > 1) {
+            combinedExplanation += `\nPart ${i+1}: ${resObj.explanation}\n`;
+        } else {
+            combinedExplanation = resObj.explanation;
+        }
+        if (resObj.segments) allSegments.push(...resObj.segments);
+    }
+    
+    const count = results.length;
+    res.json({
+        aiScore: Math.round(totalAiScore / count),
+        humanScore: Math.round(totalHumanScore / count),
+        confidence: Math.round(totalConfidence / count),
+        riskLevel: (totalAiScore / count) > 70 ? 'High' : (totalAiScore / count) > 40 ? 'Moderate' : 'Low',
+        explanation: combinedExplanation.trim(),
+        segments: allSegments
     });
-    const jsonStr = response.text?.replace(/```json|```/g, '').trim() || '{}';
-    res.json(JSON.parse(jsonStr));
+
   } catch (error: any) {
     console.error('AI Detect Error details:', error, error?.response?.data);
     res.status(500).json({ error: error.message || 'Failed to analyze text' });
