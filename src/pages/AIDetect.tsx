@@ -419,11 +419,11 @@ export default function AIDetect() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className={`text-center p-4 rounded-2xl ${result.humanScore >= 70 ? 'bg-green-50 text-green-600' : result.humanScore >= 40 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
+                    <div className={`text-center p-4 rounded-2xl ${result.humanScore > 60 ? 'bg-green-50 text-green-600' : result.humanScore < 40 ? 'bg-slate-50 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
                       <div className="text-3xl font-black">{result.humanScore}%</div>
                       <div className="text-[10px] uppercase font-bold mt-1">Human</div>
                     </div>
-                    <div className={`text-center p-4 rounded-2xl ${result.aiScore >= 70 ? 'bg-red-50 text-red-600' : result.aiScore >= 40 ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
+                    <div className={`text-center p-4 rounded-2xl ${result.aiScore > 60 ? 'bg-red-50 text-red-600' : result.aiScore < 40 ? 'bg-slate-50 text-slate-400' : 'bg-blue-50 text-blue-600'}`}>
                       <div className="text-3xl font-black">{result.aiScore}%</div>
                       <div className="text-[10px] uppercase font-bold mt-1">AI Gen</div>
                     </div>

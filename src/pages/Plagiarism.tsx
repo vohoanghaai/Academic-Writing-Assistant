@@ -317,17 +317,17 @@ export default function Plagiarism() {
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="text-center p-3 bg-red-50 rounded-2xl">
-                      <div className="text-xl font-black text-red-600">{result.exactMatch}%</div>
-                      <div className="text-[10px] uppercase font-bold text-red-400 mt-1 leading-tight">Exact</div>
+                    <div className={`text-center p-3 rounded-2xl ${result.exactMatch > 60 ? 'bg-red-50 text-red-600' : result.exactMatch <= 30 ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      <div className="text-xl font-black">{result.exactMatch}%</div>
+                      <div className={`text-[10px] uppercase font-bold mt-1 leading-tight ${result.exactMatch > 60 ? 'text-red-400' : result.exactMatch <= 30 ? 'text-green-400' : 'text-blue-400'}`}>Exact</div>
                     </div>
-                    <div className="text-center p-3 bg-orange-50 rounded-2xl">
-                      <div className="text-xl font-black text-orange-600">{result.fuzzyMatch}%</div>
-                      <div className="text-[10px] uppercase font-bold text-orange-400 mt-1 leading-tight">Fuzzy</div>
+                    <div className={`text-center p-3 rounded-2xl ${result.fuzzyMatch > 60 ? 'bg-red-50 text-red-600' : result.fuzzyMatch <= 30 ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      <div className="text-xl font-black">{result.fuzzyMatch}%</div>
+                      <div className={`text-[10px] uppercase font-bold mt-1 leading-tight ${result.fuzzyMatch > 60 ? 'text-red-400' : result.fuzzyMatch <= 30 ? 'text-green-400' : 'text-blue-400'}`}>Fuzzy</div>
                     </div>
-                    <div className="text-center p-3 bg-purple-50 rounded-2xl">
-                      <div className="text-xl font-black text-purple-600">{result.semanticMatch}%</div>
-                      <div className="text-[10px] uppercase font-bold text-purple-400 mt-1 leading-tight">Semantic</div>
+                    <div className={`text-center p-3 rounded-2xl ${result.semanticMatch > 60 ? 'bg-red-50 text-red-600' : result.semanticMatch <= 30 ? 'bg-green-50 text-green-600' : 'bg-blue-50 text-blue-600'}`}>
+                      <div className="text-xl font-black">{result.semanticMatch}%</div>
+                      <div className={`text-[10px] uppercase font-bold mt-1 leading-tight ${result.semanticMatch > 60 ? 'text-red-400' : result.semanticMatch <= 30 ? 'text-green-400' : 'text-blue-400'}`}>Semantic</div>
                     </div>
                   </div>
 
