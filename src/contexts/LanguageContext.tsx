@@ -15,7 +15,8 @@ const translations = {
     signOut: 'Sign Out',
     privacyFirst: 'Privacy First • No AI Training • Session Only',
     copyright: '© 2026 Academic Writing Assistant. All rights reserved.',
-    disclaimer: 'Disclaimer: This tool provides assistive analysis based on AI patterns and similarity matching. Content is processed temporarily and never used to train AI models.',
+    disclaimer1: 'Disclaimer: This tool provides assistive analysis based on AI patterns and similarity matching.',
+    disclaimer2: 'Content is processed temporarily and never used to train AI models.',
     uploadDocument: 'Upload Document',
     
     // Home
@@ -60,7 +61,8 @@ const translations = {
     signOut: 'Đăng xuất',
     privacyFirst: 'Ưu tiên Riêng tư • Không huấn luyện AI • Chỉ phiên hiện tại',
     copyright: '© 2026 Trợ lý Viết học thuật. Bảo lưu mọi quyền.',
-    disclaimer: 'Tuyên bố từ chối trách nhiệm: Công cụ này cung cấp phân tích hỗ trợ dựa trên các mô hình AI và kiểm tra tương đồng. Nội dung được xử lý tạm thời và không bao giờ được dùng để huấn luyện.',
+    disclaimer1: 'Tuyên bố từ chối trách nhiệm: Công cụ này cung cấp phân tích hỗ trợ dựa trên các mô hình AI và kiểm tra tương đồng.',
+    disclaimer2: 'Nội dung được xử lý tạm thời và không bao giờ được dùng để huấn luyện AI.',
     uploadDocument: 'Tải tài liệu lên',
 
     // Home
