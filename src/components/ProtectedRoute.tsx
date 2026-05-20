@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import LoginModal from './LoginModal';
+import PageLoader from './PageLoader';
 
 export default function ProtectedRoute() {
   const { user, isLoading } = useAuth();
@@ -16,7 +17,7 @@ export default function ProtectedRoute() {
   }, [user, isLoading]);
 
   if (isLoading) {
-    return <div className="min-h-[60vh] flex items-center justify-center">...</div>;
+    return <PageLoader />;
   }
 
   if (!user) {

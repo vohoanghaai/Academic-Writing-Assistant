@@ -14,19 +14,34 @@ import {
   Globe,
   BadgeCheck
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import LoginModal from './LoginModal';
+import PageLoader from './PageLoader';
 
 export default function Layout({ children }: { children: ReactNode }) {
   const location = useLocation();
+  const [prevPath, setPrevPath] = useState(location.pathname);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isRouting, setIsRouting] = useState(false);
   
-  const { user, logout, isLoginModalOpen, setIsLoginModalOpen } = useAuth();
+  const { user, logout, isAuthenticating, isLoginModalOpen, setIsLoginModalOpen } = useAuth();
   const { lang, setLang, t } = useLanguage();
+
+  if (location.pathname !== prevPath) {
+    setPrevPath(location.pathname);
+    setIsRouting(true);
+  }
+
+  useEffect(() => {
+    if (isRouting) {
+      const timer = setTimeout(() => setIsRouting(false), 800); // show loader for 800ms
+      return () => clearTimeout(timer);
+    }
+  }, [isRouting]);
 
   const navItems = [
     { path: '/', label: t('home'), icon: Home },
@@ -46,12 +61,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center gap-2">
-              <div className="bg-indigo-600 p-1.5 rounded-lg">
-                <ShieldCheck className="w-6 h-6 text-white" />
-              </div>
-              <span className="font-bold text-xl tracking-tight hidden sm:block">
-                Academic<span className="text-indigo-600">Assistant</span>
-              </span>
+              <img src="https://res.cloudinary.com/di7jeb9p1/image/upload/v1779248679/2_ukzp5r.png" alt="Logo" className="h-10 sm:h-12 max-h-full object-contain" />
             </Link>
 
             {/* Desktop Nav */}
@@ -104,10 +114,17 @@ export default function Layout({ children }: { children: ReactNode }) {
               ) : (
                 <div 
                   className="relative" 
-                  onMouseEnter={() => setIsProfileDropdownOpen(true)}
-                  onMouseLeave={() => setIsProfileDropdownOpen(false)}
+                  tabIndex={0}
+                  onBlur={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                      setIsProfileDropdownOpen(false);
+                    }
+                  }}
                 >
-                  <div className="flex items-center gap-2 bg-white text-slate-700 px-1.5 py-1.5 pr-4 rounded-full border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm">
+                  <div 
+                    onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    className="flex items-center gap-2 bg-white text-slate-700 px-1.5 py-1.5 pr-4 rounded-full border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors shadow-sm"
+                  >
                     <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">
                       {user.username.charAt(0).toUpperCase()}
                     </div>
@@ -217,8 +234,20 @@ export default function Layout({ children }: { children: ReactNode }) {
       </nav>
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-0">
-        {children}
+        {!isRouting && !isAuthenticating && (
+          <motion.div key={location.pathname} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="h-full">
+            {children}
+          </motion.div>
+        )}
       </main>
+
+      <AnimatePresence>
+        {(isAuthenticating || isRouting) && (
+          <motion.div key="global-loader" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative z-[999999]">
+            <PageLoader />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-12 relative z-0 mt-auto">

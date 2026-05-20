@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCheck, Loader2, Globe, AlertCircle, Link as LinkIcon, ChevronRight, FileText, ExternalLink, ShieldCheck, Upload, Trash2 } from 'lucide-react';
+import LoadingIndicator from '../components/LoadingIndicator';
 import { useNavigate } from 'react-router-dom';
 
 const scanModes = [
@@ -8,14 +9,22 @@ const scanModes = [
   { id: 'deep', label: 'Deep Scan', desc: 'AI-driven semantic analysis and cross-lingual translation checks. Deepest check.' },
 ];
 
+import { getShortErrorCode } from '../utils/errorMapping';
+
+import { useLanguage } from '../contexts/LanguageContext';
+
 export default function Plagiarism() {
+  const { lang } = useLanguage();
   const [text, setText] = useState('');
   const [mode, setMode] = useState('deep');
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const handleFileUpload = async (event: any) => {
     const file = event.target.files?.[0];
@@ -33,12 +42,13 @@ export default function Plagiarism() {
       const data = await res.json();
       if (res.ok) {
         setText(data.text);
+        setError('');
       } else {
-        alert(data.error || 'Upload failed');
+        setError(data.error || (lang === 'vi' ? 'Tải tệp lên thất bại' : 'Upload failed'));
       }
     } catch (error) {
       console.error(error);
-      alert('Error uploading file');
+      setError(lang === 'vi' ? 'Lỗi khi tải tệp lên' : 'Error uploading file');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -46,21 +56,106 @@ export default function Plagiarism() {
   };
 
   const handleScan = async () => {
-    if (!text) return;
+    const textToAnalyze = text;
+    if (!textToAnalyze || textToAnalyze.length < 50) {
+      setError(lang === 'vi' ? 'Vui lòng nhập tối thiểu 50 ký tự.' : 'Please enter at least 50 characters.');
+      return;
+    }
+    setError('');
     setLoading(true);
     setResult(null);
+
+    // Smart chunking by sentences (approx 8000 chars per chunk)
+    const chunks: string[] = [];
+    let currentChunk = '';
+    const sentences = textToAnalyze.match(/[^.!?]+[.!?]+/g) || [textToAnalyze];
+    
+    for (const sentence of sentences) {
+      if (currentChunk.length + sentence.length > 8000 && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = '';
+      }
+      currentChunk += sentence;
+    }
+    if (currentChunk) chunks.push(currentChunk);
+
+    setProgress({ current: 0, total: chunks.length });
+
     try {
-      const res = await fetch('/api/plagiarism-check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, scanDepth: mode }),
+      let totalSimilarity = 0;
+      let totalExact = 0;
+      let totalFuzzy = 0;
+      let totalSemantic = 0;
+      let totalLengthProcessed = 0;
+      
+      const allSourcesMap = new Map();
+      const allHighlights: any[] = [];
+      let combinedExplanation = '';
+
+      for (let i = 0; i < chunks.length; i++) {
+        setProgress({ current: i + 1, total: chunks.length });
+        const res = await fetch('/api/plagiarism-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: chunks[i], scanDepth: mode }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'API failed');
+        }
+
+        if (data && typeof data.overallSimilarity === 'number') {
+          const chunkLen = chunks[i].length;
+          totalLengthProcessed += chunkLen;
+          totalSimilarity += (data.overallSimilarity * chunkLen);
+          totalExact += ((data.exactMatch || 0) * chunkLen);
+          totalFuzzy += ((data.fuzzyMatch || 0) * chunkLen);
+          totalSemantic += ((data.semanticMatch || 0) * chunkLen);
+        }
+
+        if (data.highlights) {
+          allHighlights.push(...data.highlights);
+        }
+
+        if (data.sources) {
+          data.sources.forEach((s: any) => {
+            const key = s.url || s.title;
+            if (allSourcesMap.has(key)) {
+               const existing = allSourcesMap.get(key);
+               existing.percentage = Math.max(existing.percentage, s.percentage);
+            } else {
+               allSourcesMap.set(key, s);
+            }
+          });
+        }
+        
+        if (i === 0 && data.explanation) {
+          combinedExplanation = data.explanation;
+        }
+      }
+
+      const avgSimilarity = totalLengthProcessed > 0 ? Math.round(totalSimilarity / totalLengthProcessed) : 0;
+      const avgExact = totalLengthProcessed > 0 ? Math.round(totalExact / totalLengthProcessed) : 0;
+      const avgFuzzy = totalLengthProcessed > 0 ? Math.round(totalFuzzy / totalLengthProcessed) : 0;
+      const avgSemantic = totalLengthProcessed > 0 ? Math.round(totalSemantic / totalLengthProcessed) : 0;
+      const combinedSources = Array.from(allSourcesMap.values()).sort((a: any, b: any) => b.percentage - a.percentage);
+
+      setResult({
+        overallSimilarity: avgSimilarity,
+        exactMatch: avgExact,
+        fuzzyMatch: avgFuzzy,
+        semanticMatch: avgSemantic,
+        sources: combinedSources,
+        highlights: allHighlights,
+        explanation: chunks.length > 1 ? combinedExplanation + ' (Averaged across multiple segments)' : combinedExplanation
       });
-      const data = await res.json();
-      setResult(data);
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
+      const code = getShortErrorCode(err);
+      setError(lang === 'vi' ? `Lỗi: ${code}. Vui lòng thử lại sau.` : `Error: ${code}. Please try again later.`);
     } finally {
       setLoading(false);
+      setProgress({ current: 0, total: 0 });
     }
   };
 
@@ -118,15 +213,19 @@ export default function Plagiarism() {
               </div>
             </div>
 
-            <textarea
-              className="w-full h-[500px] p-8 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300"
-              placeholder="Paste your original work here to check for similarity..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
+            <div className="relative group focus-within:ring-4 focus-within:ring-indigo-100 transition-all rounded-b-[2.5rem]">
+              <textarea
+                className="w-full h-[500px] p-8 pb-28 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 bg-transparent"
+                placeholder="Paste your original work here to check for similarity..."
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
 
-            <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col md:flex-row justify-end items-center gap-4">
-              <div className="flex flex-wrap items-center justify-end gap-3 w-full md:w-auto">
+              {/* Gradient Fade Overlay at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b-[2.5rem]"></div>
+
+              <div className="absolute bottom-6 right-6 flex items-center gap-3 z-10 bg-white/50 backdrop-blur-sm p-2 rounded-full border border-slate-200 shadow-sm">
+                <span className="text-slate-400 text-sm font-medium pl-4">{text.length} characters</span>
                 <input 
                   type="file" 
                   ref={fileInputRef} 
@@ -138,7 +237,7 @@ export default function Plagiarism() {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isUploading}
                   title="Upload Document (.pdf, .docx, .txt)"
-                  className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-3.5 rounded-2xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm active:scale-95 text-sm w-full md:w-auto"
+                  className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-6 py-3 rounded-full font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm active:scale-95 text-sm"
                 >
                   {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Upload className="w-5 h-5" />}
                   Upload
@@ -146,7 +245,7 @@ export default function Plagiarism() {
                 <button
                   disabled={loading || !text}
                   onClick={handleScan}
-                  className="bg-indigo-600 hover:bg-slate-900 text-white px-10 py-3.5 rounded-2xl font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl active:scale-95 text-sm w-full md:w-auto"
+                  className="bg-indigo-600 hover:bg-slate-900 text-white px-8 py-3 rounded-full font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md active:scale-95 text-sm"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileCheck className="w-5 h-5" />}
                   Run Full Originality Scan
@@ -154,10 +253,17 @@ export default function Plagiarism() {
               </div>
             </div>
           </div>
+          
+          {error && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-red-500 bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-2 text-sm font-medium mt-4">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </motion.div>
+          )}
         </div>
 
         {/* Results Sidebar */}
-        <div className="xl:col-span-4 xl:row-start-2 xl:col-start-9 space-y-6">
+        <div className="xl:col-span-4 xl:row-start-2 xl:col-start-9 space-y-6 sticky top-24 h-fit">
           <AnimatePresence mode="wait">
             {!result && !loading && (
               <div className="h-96 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center p-8 text-center text-slate-400 space-y-4">
@@ -167,25 +273,15 @@ export default function Plagiarism() {
             )}
 
             {loading && (
-              <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8 text-center">
-                <div className="relative w-32 h-32 mx-auto">
-                  <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
-                    <motion.circle 
-                      cx="64" cy="64" r="60" stroke="currentColor" strokeWidth="8" fill="transparent" 
-                      strokeDasharray="376.99"
-                      initial={{ strokeDashoffset: 376.99 }}
-                      animate={{ strokeDashoffset: 0 }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                      className="text-indigo-600"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <FileCheck className="w-8 h-8 text-indigo-400 animate-pulse" />
-                  </div>
-                </div>
-                <div className="space-y-2">
+              <div className="bg-white p-10 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-8 text-center flex flex-col items-center">
+                <LoadingIndicator />
+                <div className="space-y-2 w-full">
                   <h3 className="font-bold text-lg">Cross-referencing Sources</h3>
+                  {progress.total > 1 && (
+                    <p className="text-sm font-bold text-indigo-600 mb-2">
+                       Processing Part {progress.current} of {progress.total}
+                    </p>
+                  )}
                   <div className="text-slate-400 text-xs font-mono space-y-1">
                     <p className="animate-pulse">Checking exact patterns...</p>
                     <p className="animate-pulse delay-75">Analyzing fuzzy patterns...</p>
@@ -223,7 +319,7 @@ export default function Plagiarism() {
 
                   <div className="space-y-4 pt-4 border-t border-slate-50">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Matched Sources</h4>
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                       {result.sources?.map((s: any, i: number) => (
                         <div key={i} className="group p-4 rounded-2xl bg-slate-50 border border-slate-100 hover:border-indigo-200 transition-all cursor-pointer">
                           <div className="flex justify-between items-start mb-2">

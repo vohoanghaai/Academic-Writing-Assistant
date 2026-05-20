@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Type, Loader2, Copy, Download, RefreshCw, Check, Library, Info, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { Type, Loader2, Copy, Download, RefreshCw, Check, Library, Info, ShieldAlert, ShieldCheck, AlertCircle } from 'lucide-react';
+import LoadingIndicator from '../components/LoadingIndicator';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const modes = [
@@ -11,13 +12,19 @@ const modes = [
   { id: 'Vietnamese', label: 'Vietnamese Style' },
 ];
 
+import { getShortErrorCode } from '../utils/errorMapping';
+
+import { useLanguage } from '../contexts/LanguageContext';
+
 export default function Paraphrase() {
+  const { lang } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [text, setText] = useState('');
   const [mode, setMode] = useState('Academic');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -27,7 +34,11 @@ export default function Paraphrase() {
   }, [location.state]);
 
   const handleParaphrase = async () => {
-    if (!text) return;
+    if (!text || text.length < 50) {
+      setError(lang === 'vi' ? 'Vui lòng nhập tối thiểu 50 ký tự.' : 'Please enter at least 50 characters.');
+      return;
+    }
+    setError('');
     setLoading(true);
     setResult(null);
     try {
@@ -38,8 +49,10 @@ export default function Paraphrase() {
       });
       const data = await res.json();
       setResult(data);
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
+      const code = getShortErrorCode(err);
+      setError(lang === 'vi' ? `Lỗi: ${code}. Vui lòng thử lại sau.` : `Error: ${code}. Please try again later.`);
     } finally {
       setLoading(false);
     }
@@ -70,15 +83,15 @@ export default function Paraphrase() {
 
         {/* Input */}
         <div className="lg:row-start-2 lg:col-start-1 space-y-6">
-          <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden p-0 border-t-8 border-t-orange-500">
+            <div className="p-4 border-b border-slate-50 bg-slate-50/30 flex flex-wrap gap-2 items-center">
               {modes.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setMode(m.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
                     mode === m.id 
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-md' 
                       : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
                   }`}
                 >
@@ -86,23 +99,38 @@ export default function Paraphrase() {
                 </button>
               ))}
             </div>
-            
-            <textarea
-              className="w-full h-96 p-4 rounded-2xl bg-slate-50 border-none focus:ring-2 focus:ring-indigo-100 outline-none resize-none text-slate-800"
-              placeholder="Paste text to paraphrase responsibly..."
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
 
-            <button
-              disabled={loading || !text}
-              onClick={handleParaphrase}
-              className="w-full bg-indigo-600 hover:bg-slate-900 disabled:opacity-50 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Library className="w-5 h-5" />}
-              Paraphrase Document
-            </button>
+            <div className="relative group focus-within:ring-4 focus-within:ring-indigo-100 transition-all rounded-b-[2.5rem]">
+              <textarea
+                className="w-full h-[500px] p-8 pb-28 outline-none resize-none text-lg leading-relaxed text-slate-800 placeholder:text-slate-300 bg-transparent"
+                placeholder="Paste text to paraphrase responsibly..."
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+              />
+
+              {/* Gradient Fade Overlay at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none rounded-b-[2.5rem]"></div>
+
+              <div className="absolute bottom-6 right-6 flex items-center gap-3 z-10 bg-white/50 backdrop-blur-sm p-2 rounded-full border border-slate-200 shadow-sm">
+                <span className="text-slate-400 text-sm font-medium pl-4">{text.length} characters</span>
+                <button
+                  disabled={loading || !text}
+                  onClick={handleParaphrase}
+                  className="bg-indigo-600 hover:bg-slate-900 text-white px-8 py-3 rounded-full font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-md active:scale-95 text-sm"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Library className="w-5 h-5" />}
+                  Paraphrase Document
+                </button>
+              </div>
+            </div>
           </div>
+          
+          {error && (
+            <div className="text-red-500 bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-2 text-sm font-medium mt-4">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </div>
+          )}
         </div>
 
         {/* Output */}
@@ -117,7 +145,7 @@ export default function Paraphrase() {
 
             {loading && (
               <div className="h-full bg-white border border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center p-12 text-center space-y-6 shadow-sm">
-                <Loader2 className="w-12 h-12 text-indigo-600 animate-spin" />
+                <LoadingIndicator />
                 <p className="text-slate-600 font-medium">Restructuring your argument...</p>
               </div>
             )}
@@ -140,7 +168,7 @@ export default function Paraphrase() {
                   </div>
                 </div>
 
-                <div className="p-6 flex-1 overflow-y-auto">
+                <div className="p-6 flex-1 overflow-y-auto custom-scrollbar">
                   <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{result.paraphrasedText}</p>
                 </div>
 

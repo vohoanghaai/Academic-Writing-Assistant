@@ -1,17 +1,26 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, ShieldCheck, AlertCircle, CheckCircle2, RefreshCw, Upload, Sparkles } from 'lucide-react';
+import LoadingIndicator from '../components/LoadingIndicator';
 import { useNavigate } from 'react-router-dom';
 
+import { getShortErrorCode } from '../utils/errorMapping';
+
+import { useLanguage } from '../contexts/LanguageContext';
+
 export default function AIDetect() {
+  const { lang } = useLanguage();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const [humanizedText, setHumanizedText] = useState('');
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const [progress, setProgress] = useState({ current: 0, total: 0 });
 
   const handleFileUpload = async (event: any) => {
     const file = event.target.files?.[0];
@@ -29,12 +38,13 @@ export default function AIDetect() {
       const data = await res.json();
       if (res.ok) {
         setText(data.text);
+        setError('');
       } else {
-        alert(data.error || 'Upload failed');
+        setError(data.error || (lang === 'vi' ? 'Tải tệp lên thất bại' : 'Upload failed'));
       }
     } catch (error) {
       console.error(error);
-      alert('Error uploading file');
+      setError(lang === 'vi' ? 'Lỗi khi tải tệp lên' : 'Error uploading file');
     } finally {
       setIsUploading(false);
       // clear input
@@ -45,23 +55,98 @@ export default function AIDetect() {
   const handleAnalyze = async (textContent?: string) => {
     const textToAnalyze = typeof textContent === 'string' ? textContent : text;
     if (!textToAnalyze || textToAnalyze.length < 50) {
-      alert('Please enter at least 50 characters for a meaningful analysis.');
+      setError(lang === 'vi' ? 'Vui lòng nhập tối thiểu 50 ký tự.' : 'Please enter at least 50 characters.');
       return;
     }
+    setError('');
     setLoading(true);
     setResult(null);
+
+    // Smart chunking by sentences (approx 8000 chars per chunk)
+    const chunks: string[] = [];
+    let currentChunk = '';
+    const sentences = textToAnalyze.match(/[^.!?]+[.!?]+/g) || [textToAnalyze];
+    
+    for (const sentence of sentences) {
+      if (currentChunk.length + sentence.length > 8000 && currentChunk.length > 0) {
+        chunks.push(currentChunk);
+        currentChunk = '';
+      }
+      currentChunk += sentence;
+    }
+    if (currentChunk) chunks.push(currentChunk);
+
+    setProgress({ current: 0, total: chunks.length });
+
     try {
-      const res = await fetch('/api/ai-detect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: textToAnalyze }),
+      let totalAiScore = 0;
+      let totalHumanScore = 0;
+      let totalConfidence = 0;
+      let totalLengthProcessed = 0;
+      const allSegments: any[] = [];
+      let overallExplanation = '';
+
+      for (let i = 0; i < chunks.length; i++) {
+        setProgress({ current: i + 1, total: chunks.length });
+        const res = await fetch('/api/ai-detect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: chunks[i] }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'API failed');
+        }
+        
+        if (data && typeof data.aiScore === 'number') {
+          const chunkLen = chunks[i].length;
+          totalLengthProcessed += chunkLen;
+          totalAiScore += (data.aiScore * chunkLen);
+          totalHumanScore += ((data.humanScore ?? (100 - data.aiScore)) * chunkLen);
+          totalConfidence += ((data.confidence || 0) * chunkLen);
+        }
+
+        if (data.segments) {
+          allSegments.push(...data.segments);
+        }
+        if (i === 0 && data.explanation) {
+          overallExplanation = data.explanation;
+        }
+      }
+
+      if (totalLengthProcessed === 0) {
+        throw new Error('Analysis failed for all text segments');
+      }
+
+      let avgAiScore = Math.round(totalAiScore / totalLengthProcessed);
+      let avgHumanScore = Math.round(totalHumanScore / totalLengthProcessed);
+      const avgConfidence = Math.round(totalConfidence / totalLengthProcessed);
+      
+      const sum = avgAiScore + avgHumanScore;
+      if (sum > 0) {
+        avgAiScore = Math.round((avgAiScore / sum) * 100);
+        avgHumanScore = 100 - avgAiScore;
+      }
+
+      let riskLevel = 'Low';
+      if (avgAiScore > 70) riskLevel = 'High';
+      else if (avgAiScore > 40) riskLevel = 'Medium';
+
+      setResult({
+        aiScore: avgAiScore,
+        humanScore: avgHumanScore,
+        confidence: avgConfidence,
+        riskLevel,
+        segments: allSegments,
+        explanation: overallExplanation || 'Analysis complete across large text.'
       });
-      const data = await res.json();
-      setResult(data);
-    } catch (error) {
-      console.error(error);
+    } catch (err: any) {
+      console.error(err);
+      const code = getShortErrorCode(err);
+      setError(lang === 'vi' ? `Lỗi: ${code}. Vui lòng thử lại sau.` : `Error: ${code}. Please try again later.`);
     } finally {
       setLoading(false);
+      setProgress({ current: 0, total: 0 });
     }
   };
 
@@ -163,15 +248,18 @@ export default function AIDetect() {
 
         {/* Input area */}
         <div className="lg:col-span-2 lg:row-start-2 lg:col-start-1 space-y-4">
-          <div className="relative group">
+          <div className="relative group rounded-3xl overflow-hidden border border-slate-200 bg-white shadow-sm focus-within:ring-4 focus-within:ring-indigo-100 focus-within:border-indigo-400 transition-all">
             <textarea
-              className="w-full h-[500px] p-6 rounded-3xl border border-slate-200 bg-white shadow-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-400 outline-none transition-all resize-none text-lg leading-relaxed font-sans"
+              className="w-full h-[500px] p-6 pb-28 outline-none resize-none text-lg leading-relaxed font-sans bg-transparent"
               placeholder="Paste your academic text here (min 50 characters)..."
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <div className="absolute bottom-6 right-6 flex items-center gap-3">
-              <span className="text-slate-400 text-sm font-medium">{text.length} characters</span>
+            {/* Gradient Fade Overlay at bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white via-white/90 to-transparent pointer-events-none"></div>
+            
+            <div className="absolute bottom-6 right-6 flex items-center gap-3 z-10 bg-white/50 backdrop-blur-sm p-2 rounded-full border border-white/40 shadow-sm">
+              <span className="text-slate-400 text-sm font-medium pl-4">{text.length} characters</span>
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -199,6 +287,13 @@ export default function AIDetect() {
             </div>
           </div>
           
+          {error && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-red-500 bg-red-50 border border-red-100 p-4 rounded-2xl flex items-center gap-2 text-sm font-medium">
+              <AlertCircle className="w-4 h-4" />
+              {error}
+            </motion.div>
+          )}
+          
           {result && result.segments && result.segments.length > 0 && result.aiScore > 40 && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -211,7 +306,7 @@ export default function AIDetect() {
               </h3>
               <div className={`grid grid-cols-1 ${(isHumanizing || humanizedText) ? 'lg:grid-cols-2' : ''} gap-4`}>
                 <div className="space-y-4">
-                  <div className="w-full h-80 p-6 rounded-3xl border border-slate-200 bg-slate-50 overflow-y-auto text-sm leading-relaxed font-sans whitespace-pre-wrap text-slate-500">
+                  <div className="w-full h-80 p-6 rounded-3xl border border-slate-200 bg-slate-50 overflow-y-auto custom-scrollbar text-sm leading-relaxed font-sans whitespace-pre-wrap text-slate-500">
                     {renderHighlightedText()}
                   </div>
                   <button
@@ -226,7 +321,7 @@ export default function AIDetect() {
 
                 {(isHumanizing || humanizedText) && (
                   <div className="space-y-4">
-                    <div className="w-full h-80 p-6 rounded-3xl border border-slate-200 bg-emerald-50/30 overflow-y-auto text-sm leading-relaxed font-sans whitespace-pre-wrap text-slate-700 relative">
+                    <div className="w-full h-80 p-6 rounded-3xl border border-slate-200 bg-emerald-50/30 overflow-y-auto custom-scrollbar text-sm leading-relaxed font-sans whitespace-pre-wrap text-slate-700 relative">
                       {isHumanizing ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
                            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
@@ -253,7 +348,7 @@ export default function AIDetect() {
         </div>
 
         {/* Sidebar Results */}
-        <div className="lg:col-span-1 lg:row-start-2 lg:col-start-3">
+        <div className="lg:col-span-1 lg:row-start-2 lg:col-start-3 sticky top-24 h-fit">
           <AnimatePresence mode="wait">
             {!result && !loading && (
               <motion.div 
@@ -275,14 +370,14 @@ export default function AIDetect() {
                 animate={{ opacity: 1 }}
                 className="h-full bg-white border border-slate-100 rounded-[2.5rem] flex flex-col items-center justify-center p-8 text-center space-y-6 shadow-sm"
               >
-                <div className="relative">
-                  <Loader2 className="w-16 h-16 text-indigo-600 animate-spin" />
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-4 h-4 bg-indigo-600 rounded-full animate-pulse" />
-                  </div>
-                </div>
+                <LoadingIndicator />
                 <div>
                   <h3 className="font-bold text-lg mb-2">Analyzing Sentences</h3>
+                  {progress.total > 1 && (
+                    <p className="text-sm font-bold text-indigo-600 mb-2">
+                      Processing Part {progress.current} of {progress.total}
+                    </p>
+                  )}
                   <div className="space-y-2">
                     <div className="h-1.5 w-48 bg-slate-100 rounded-full overflow-hidden">
                       <motion.div 
@@ -345,7 +440,7 @@ export default function AIDetect() {
                     <AlertCircle className="w-4 h-4 text-orange-500" />
                     Detection Markers
                   </h4>
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                     {result.segments?.map((s: any, i: number) => (
                       <div key={i} className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
                         <p className="text-xs text-slate-400 italic mb-2 line-clamp-1">"{s.text}"</p>

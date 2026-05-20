@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext';
-import { X, ShieldCheck, Loader2 } from 'lucide-react';
+import { X, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const { login } = useAuth();
@@ -11,6 +11,7 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean, onClo
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   if (!isOpen) return null;
 
@@ -54,8 +55,8 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean, onClo
           </div>
           
           <div className="flex flex-col items-center mb-8 relative z-10">
-            <div className="bg-indigo-50 p-4 rounded-2xl mb-4 text-indigo-600">
-              <ShieldCheck className="w-8 h-8" />
+            <div className="mb-4">
+              <img src="https://res.cloudinary.com/di7jeb9p1/image/upload/v1779248214/1_bkllre.png" alt="App Icon" className="w-16 h-16 object-contain" />
             </div>
             <h2 className="text-2xl font-bold text-slate-900">{t('loginTitle')}</h2>
             <p className="text-slate-500 text-sm mt-2">{t('loginDesc')}</p>
@@ -77,15 +78,24 @@ export default function LoginModal({ isOpen, onClose }: { isOpen: boolean, onClo
                 required
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="space-y-1.5 object-relative">
               <label className="text-sm font-bold text-slate-700">{t('password')}</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-600 outline-none transition-all pr-12"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                >
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
             </div>
             
             <button 

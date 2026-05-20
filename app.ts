@@ -127,35 +127,44 @@ app.post('/api/ai-detect', async (req, res) => {
   if (!text) return res.status(400).json({ error: 'Text is required' });
 
   try {
-    const prompt = `Analyze the following text for signs of AI generation. 
-    1. Provide Human-written percentage and AI-written percentage (must sum to 100).
-    2. Risk level: Low, Medium, or High.
-    3. Confidence score (0-100).
-    4. Highlight specific segments (JSON array) that show strong AI patterns.
-    5. Explain briefly why.
-    Return the response in strict JSON format: 
+    const prompt = `As an expert linguist and forensic AI detection system, analyze the provided text.
+    You MUST output a strict JSON object responding to these requirements based on an empirical evaluation, not guessing.
+
+    Evaluation Methodology:
+    1. Burstiness (Sentence variation): Humans mix very short and very long sentences. AI tends to use uniform sentence lengths.
+    2. Perplexity: AI uses highly predictable word choices. Humans use idiosyncratic phrasing.
+    3. Structural Symmetry: AI often creates perfectly balanced paragraphs and lists.
+    4. Vocabulary Markers: AI frequently uses words like "fosters", "delve", "crucial", "realm", "tapestry", "seamlessly", "testament", "multifaceted", "underscores".
+
+    Calculate scores strictly based on these four factors.
+
+    JSON Output format: 
     {
-      "humanScore": number,
-      "aiScore": number,
-      "riskLevel": "Low" | "Medium" | "High",
-      "confidence": number,
-      "explanation": "string",
-      "segments": [{"text": "string", "reason": "string", "startIndex": number, "endIndex": number}]
+      "humanScore": 80,
+      "aiScore": 20,
+      "riskLevel": "Low",
+      "confidence": 90,
+      "explanation": "Brief forensic justification",
+      "segments": [{"text": "exact sentence that looks like AI", "reason": "brief reason based on methodology"}]
     }
 
-    Text: ${text.slice(0, 5000)}`;
+    Text to Analyze:
+    ${text.slice(0, 10000)}`;
 
     const ai = await getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: { responseMimeType: 'application/json' }
+      config: { 
+        responseMimeType: 'application/json',
+        temperature: 0.1 
+      }
     });
     const jsonStr = response.text?.replace(/```json|```/g, '').trim() || '{}';
     res.json(JSON.parse(jsonStr));
-  } catch (error) {
-    console.error('AI Detect Error details:', error);
-    res.status(500).json({ error: 'Failed to analyze text' });
+  } catch (error: any) {
+    console.error('AI Detect Error details:', error, error?.response?.data);
+    res.status(500).json({ error: error.message || 'Failed to analyze text' });
   }
 });
 
@@ -164,9 +173,14 @@ app.post('/api/humanize', async (req, res) => {
   const { text, tone } = req.body;
   
   try {
-    const prompt = `Rewrite the text to sound more natural, human, and academically responsible. 
+    const prompt = `Rewrite the text to sound exceptionally natural, human, and not like an AI. 
     Selected Tone: ${tone || 'Academic'}.
-    Preserve the original meaning, avoid adding unsupported facts, improve sentence variation, and reduce repetitive AI-like phrasing.
+    Preserve the original meaning and avoid adding unsupported facts. 
+    CRITICAL OBJECTIVE: You must completely bypass AI detection. Your output will be tested by a strict AI detector, and your goal is to achieve an AI score of 0%.
+    - Eliminate all common AI vocabulary (e.g., 'fosters', 'crucial', 'delve', 'moreover', 'not only... but also', 'testament', 'tapestry', 'realm').
+    - Vary sentence lengths aggressively. Mix very short, punchy sentences with longer, complex ones.
+    - Introduce subtle, intentional human-like phrasing or slight conversational imperfections where appropriate.
+    - Avoid perfectly balanced clauses and predictable transition words.
     Return JSON: { "humanizedText": "string", "changes": "string", "warnings": ["string"] }
 
     Text: ${text}`;
@@ -195,11 +209,15 @@ app.post('/api/humanize-segments', async (req, res) => {
 
     const segmentsList = segments.map((s: any) => s.text || s).join('\n- ');
     
-    const prompt = `You are an expert editor. I am providing you with a full text, and a list of specific segments from that text that sound too much like an AI. 
-    Your task is to rewrite ONLY those specified segments to sound more natural and human, and seamlessly integrate them back into the full text. 
+    const prompt = `You are a talented editor and copywriter. I am providing you with a full text, and a list of specific segments from that text that sound too much like an AI. 
+    Your task is to rewrite ONLY those specified segments to sound completely natural and undeniably human, and seamlessly integrate them back into the full text. 
+    CRITICAL OBJECTIVE: The resulting text will be run through a strict AI detector. Your single goal is to ensure the rewritten segments get an AI score of 0%.
+    - Eliminate all common AI vocabulary (e.g., 'crucial', 'delve', 'moreover', 'testament', 'tapestry').
+    - Vary sentence structures aggressively. 
+    - Use intentional human-like conversational nuances or slight imperfections.
     DO NOT change any part of the text that is not in the segments list.
     
-    Return the result as JSON: { "humanizedText": "the entire rewritten text", "changes": "brief summary of how you rewrote the segments" }
+    Return the result as JSON: { "humanizedText": "the entire rewritten text including the new segments", "changes": "brief summary of how you rewrote the segments" }
 
     Segments to rewrite:
     - ${segmentsList}
@@ -263,13 +281,13 @@ app.post('/api/plagiarism-check', async (req, res) => {
     scanPrompt += `
     Return strict JSON:
     {
-      "overallSimilarity": number,
-      "exactMatch": number,
-      "fuzzyMatch": number,
-      "semanticMatch": number,
-      "sources": [{"title": "string", "url": "string", "percentage": number, "type": "exact" | "fuzzy" | "semantic"}],
-      "highlights": [{"text": "string", "type": "exact" | "fuzzy" | "semantic", "source": "string"}],
-      "explanation": "string"
+      "overallSimilarity": 10,
+      "exactMatch": 5,
+      "fuzzyMatch": 5,
+      "semanticMatch": 0,
+      "sources": [{"title": "Example Title", "url": "https://example.com", "percentage": 10, "type": "exact"}],
+      "highlights": [{"text": "sentence similar to source", "type": "exact", "source": "https://example.com"}],
+      "explanation": "Explanation of findings."
     }
 
     Text: ${text}`;

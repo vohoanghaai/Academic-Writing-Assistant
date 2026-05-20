@@ -19,6 +19,7 @@ interface AuthContextType {
   login: (username: string, key: string) => Promise<void>;
   logout: () => Promise<void>;
   isLoading: boolean;
+  isAuthenticating: boolean;
   isLoginModalOpen: boolean;
   setIsLoginModalOpen: (isOpen: boolean) => void;
 }
@@ -28,6 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   useEffect(() => {
@@ -44,25 +46,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = async (username: string, key: string) => {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, key })
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || 'Login failed');
+    try {
+      const startTime = Date.now();
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, key })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      setIsAuthenticating(true);
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1200) {
+        await new Promise(r => setTimeout(r, 1200 - elapsed));
+      }
+      setUser(data.user);
+    } finally {
+      setIsAuthenticating(false);
     }
-    setUser(data.user);
   };
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    setUser(null);
+    setIsAuthenticating(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      await new Promise(r => setTimeout(r, 1200));
+      setUser(null);
+    } finally {
+      setIsAuthenticating(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isLoading, isLoginModalOpen, setIsLoginModalOpen }}>
+    <AuthContext.Provider value={{ user, login, logout, isLoading, isAuthenticating, isLoginModalOpen, setIsLoginModalOpen }}>
       {children}
     </AuthContext.Provider>
   );

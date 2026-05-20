@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, FileText, ChevronRight, Download, Eye, ExternalLink, Calendar, Search } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import LoadingIndicator from '../components/LoadingIndicator';
 
 export default function Reports() {
   const [reports, setReports] = useState<any[]>([]);
@@ -58,7 +59,7 @@ export default function Reports() {
 
     {loading ? (
         <div className="flex justify-center py-24">
-          <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <LoadingIndicator />
         </div>
       ) : reports.length === 0 ? (
         <div className="bg-white rounded-[3rem] p-24 text-center border border-slate-100 shadow-sm flex flex-col items-center space-y-6">
