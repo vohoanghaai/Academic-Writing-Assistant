@@ -64,10 +64,10 @@ async function getAI() {
     const location = process.env.VERTEX_LOCATION || 'us-central1';
     
     if (project) {
-       ai = new GoogleGenAI({ vertexai: { project, location } });
+       ai = new GoogleGenAI({ vertexai: true, project, location });
     } else {
        console.warn('WARNING: Could not determine Vertex project ID. Vertex AI might fail to initialize.');
-       ai = new GoogleGenAI({ vertexai: { project: "missing-project-id", location } });
+       ai = new GoogleGenAI({ vertexai: true, project: "missing-project-id", location });
     }
     return ai;
   }
