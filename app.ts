@@ -3,14 +3,11 @@ import path from 'path';
 import * as dotenvModule from 'dotenv';
 import * as multerModule from 'multer';
 import * as cookieParserModule from 'cookie-parser';
-import * as mammoth from 'mammoth';
-import * as pdfParseModule from 'pdf-parse';
 
 const express = (expressModule as any).default || expressModule;
 const dotenv = (dotenvModule as any).default || dotenvModule;
 const multer = (multerModule as any).default || multerModule;
 const cookieParser = (cookieParserModule as any).default || cookieParserModule;
-const pdfParse = (pdfParseModule as any).default || pdfParseModule;
 
 dotenv.config();
 
@@ -24,6 +21,13 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 import type { GoogleGenAI } from '@google/genai';
 import fs from 'fs';
+
+// Setup polyfills for pdf-parse / pdfjs-dist internally if needed
+if (typeof global !== 'undefined') {
+  (global as any).DOMMatrix = (global as any).DOMMatrix || class DOMMatrix {};
+  (global as any).Path2D = (global as any).Path2D || class Path2D {};
+  (global as any).ImageData = (global as any).ImageData || class ImageData {};
+}
 
 let ai: any = null;
 
@@ -92,6 +96,8 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const filename = req.file.originalname.toLowerCase();
     
     if (filename.endsWith('.pdf') || req.file.mimetype === 'application/pdf') {
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse = pdfParseModule.default || pdfParseModule;
       const data = await pdfParse(buffer);
       text = data.text;
     } else if (
@@ -99,6 +105,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
       req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
       req.file.mimetype === 'application/msword'
     ) {
+      const mammoth = await import('mammoth');
       const result = await mammoth.extractRawText({ buffer });
       text = result.value;
     } else if (filename.endsWith('.txt') || req.file.mimetype?.startsWith('text/')) {
