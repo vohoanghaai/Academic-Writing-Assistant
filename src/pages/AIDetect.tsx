@@ -9,7 +9,7 @@ import { getShortErrorCode } from '../utils/errorMapping';
 import { useLanguage } from '../contexts/LanguageContext';
 
 export default function AIDetect() {
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -241,8 +241,8 @@ export default function AIDetect() {
         <div className="lg:col-span-2 lg:row-start-1 lg:col-start-1">
           <div className="flex items-center gap-2 px-6 py-3 bg-indigo-50 border border-indigo-100 rounded-2xl w-full">
             <ShieldCheck className="w-5 h-5 text-indigo-600" />
-            <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Privacy Mode: Non-Storing Scan</span>
-            <span className="text-[10px] text-indigo-400 font-medium ml-auto">Data is processed in-memory and not used for AI training.</span>
+            <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">{t('privacyMode')}</span>
+            <span className="text-[10px] text-indigo-400 font-medium ml-auto hidden sm:block">{t('privacyModeDesc')}</span>
           </div>
         </div>
 

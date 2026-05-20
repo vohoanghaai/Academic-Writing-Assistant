@@ -119,7 +119,7 @@ export default function Home() {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 bg-indigo-500/20 text-indigo-300 px-4 py-1 rounded-full text-xs font-bold mb-6 border border-indigo-500/30">
             <ShieldCheck className="w-4 h-4" />
-            Zero-Data Training Policy
+            {t('zeroDataPolicy')}
           </div>
           <h2 className="text-3xl font-bold mb-4">{t('privacyTitle')}</h2>
           <p className="text-slate-300 leading-relaxed mb-8 text-lg">

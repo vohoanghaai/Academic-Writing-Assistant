@@ -42,6 +42,11 @@ const translations = {
     privacyItem2Title: 'Anti-Plagiarism Safety',
     privacyItem2Desc: 'Ensures your articles are not leaked to third-party databases.',
     
+    // Privacy Banner
+    zeroDataPolicy: 'Zero-Data Training Policy',
+    privacyMode: 'Privacy Mode: Non-Storing Scan',
+    privacyModeDesc: 'Data is processed in-memory and not used for AI training.',
+
     // Login Modal
     loginTitle: 'Access Required',
     loginDesc: 'Please sign in to access these features.',
@@ -87,6 +92,11 @@ const translations = {
     privacyItem1Desc: 'Văn bản được phân tích trực tiếp và xóa ngay sau khi phiên làm việc kết thúc.',
     privacyItem2Title: 'An toàn chống Đạo văn',
     privacyItem2Desc: 'Đảm bảo bài viết của bạn không bị lọt vào leak-database của bên thứ ba.',
+
+    // Privacy Banner
+    zeroDataPolicy: 'Chính sách đào tạo Không Dữ liệu',
+    privacyMode: 'Chế độ Bảo mật',
+    privacyModeDesc: 'Dữ liệu được xử lý trong bộ nhớ và không được sử dụng để đào tạo AI.',
 
     // Login Modal
     loginTitle: 'Yêu cầu quyền truy cập',

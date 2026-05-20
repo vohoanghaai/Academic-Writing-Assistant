@@ -58,14 +58,14 @@ export default function Layout({ children }: { children: ReactNode }) {
       
       {/* Navbar */}
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[90rem] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <Link to="/" className="flex items-center gap-2">
               <img src="https://res.cloudinary.com/di7jeb9p1/image/upload/v1779248679/2_ukzp5r.png" alt="Logo" className="h-10 sm:h-12 max-h-full object-contain" />
             </Link>
 
             {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden xl:flex items-center gap-1">
               {navItems.map((item) => {
                 const isProtected = item.path !== '/';
                 return (
@@ -78,7 +78,7 @@ export default function Layout({ children }: { children: ReactNode }) {
                         setIsLoginModalOpen(true);
                       }
                     }}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                    className={`px-3 xl:px-4 py-2 rounded-full text-sm font-medium transition-all ${
                       location.pathname === item.path
                         ? 'bg-indigo-50 text-indigo-700'
                         : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
@@ -94,7 +94,7 @@ export default function Layout({ children }: { children: ReactNode }) {
             </div>
 
             {/* CTA & Lang */}
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden xl:flex items-center gap-3">
               <button 
                 onClick={() => setLang(lang === 'en' ? 'vi' : 'en')}
                 className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors flex items-center gap-1"
@@ -161,7 +161,7 @@ export default function Layout({ children }: { children: ReactNode }) {
 
             {/* Mobile Menu Toggle */}
             <button 
-              className="md:hidden p-2 text-slate-600"
+              className="xl:hidden p-2 text-slate-600"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               {isMobileMenuOpen ? <X /> : <Menu />}
@@ -176,57 +176,67 @@ export default function Layout({ children }: { children: ReactNode }) {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="md:hidden bg-white border-t border-slate-100 overflow-hidden"
+              className="xl:hidden bg-white border-t border-slate-100 overflow-hidden"
             >
-              <div className="px-4 py-6 space-y-4">
-                <div className="flex justify-between items-center mb-4 pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Globe className="w-4 h-4 text-slate-400" />
-                    <button onClick={() => setLang('en')} className={`text-sm font-bold ${lang === 'en' ? 'text-indigo-600' : 'text-slate-500'}`}>EN</button>
-                    <span className="text-slate-300">|</span>
-                    <button onClick={() => setLang('vi')} className={`text-sm font-bold ${lang === 'vi' ? 'text-indigo-600' : 'text-slate-500'}`}>VI</button>
+              <div className="px-4 py-6">
+                <div className="space-y-2">
+                  {navItems.map((item) => {
+                    const isProtected = item.path !== '/';
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        onClick={(e) => {
+                          if (!user && isProtected) {
+                            e.preventDefault();
+                            setIsLoginModalOpen(true);
+                            setIsMobileMenuOpen(false);
+                          } else {
+                            setIsMobileMenuOpen(false);
+                          }
+                        }}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium ${
+                          location.pathname === item.path
+                            ? 'bg-indigo-50 text-indigo-700'
+                            : 'text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        <item.icon className="w-5 h-5" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-slate-100 flex flex-col gap-4">
+                  <div className="flex items-center justify-between px-4 py-2">
+                    <div className="flex items-center gap-3 text-slate-600">
+                      <Globe className="w-5 h-5 text-slate-400" />
+                      <span className="text-base font-medium">{lang === 'vi' ? 'Ngôn ngữ' : 'Language'}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => setLang('en')} className={`text-base font-bold ${lang === 'en' ? 'text-indigo-600' : 'text-slate-500'}`}>EN</button>
+                      <span className="text-slate-300">|</span>
+                      <button onClick={() => setLang('vi')} className={`text-base font-bold ${lang === 'vi' ? 'text-indigo-600' : 'text-slate-500'}`}>VI</button>
+                    </div>
                   </div>
-                  
+
                   {!user ? (
                     <button 
                       onClick={() => { setIsLoginModalOpen(true); setIsMobileMenuOpen(false); }}
-                      className="bg-indigo-600 text-white px-4 py-1.5 rounded-full text-sm font-bold"
+                      className="bg-indigo-600 text-white px-4 py-3 rounded-xl text-base font-bold text-center w-full shadow-sm"
                     >
                       {t('getStarted')}
                     </button>
                   ) : (
-                    <button onClick={logout} className="text-red-500 text-sm font-bold">
+                    <button 
+                      onClick={() => { logout(); setIsMobileMenuOpen(false); }} 
+                      className="bg-red-50 text-red-600 px-4 py-3 rounded-xl text-base font-bold text-center w-full"
+                    >
                       {t('signOut')}
                     </button>
                   )}
                 </div>
-
-                {navItems.map((item) => {
-                  const isProtected = item.path !== '/';
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={(e) => {
-                        if (!user && isProtected) {
-                          e.preventDefault();
-                          setIsLoginModalOpen(true);
-                          setIsMobileMenuOpen(false);
-                        } else {
-                          setIsMobileMenuOpen(false);
-                        }
-                      }}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium ${
-                        location.pathname === item.path
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      <item.icon className="w-5 h-5" />
-                      {item.label}
-                    </Link>
-                  );
-                })}
               </div>
             </motion.div>
           )}
