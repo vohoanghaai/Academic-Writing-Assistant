@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileCheck, Loader2, Globe, AlertCircle, Link as LinkIcon, ChevronRight, FileText, ExternalLink, ShieldCheck, Upload, Trash2 } from 'lucide-react';
 import LoadingIndicator from '../components/LoadingIndicator';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const scanModes = [
   { id: 'quick', label: 'Quick Scan', desc: 'Checks internal database and common academic templates only. Fast and secure.' },
@@ -23,6 +23,16 @@ export default function Plagiarism() {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.text) {
+      setText(location.state.text);
+      handleScan(location.state.text);
+      // Clear state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
@@ -55,8 +65,8 @@ export default function Plagiarism() {
     }
   };
 
-  const handleScan = async () => {
-    const textToAnalyze = text;
+  const handleScan = async (textContent?: string | React.MouseEvent) => {
+    const textToAnalyze = typeof textContent === 'string' ? textContent : text;
     if (!textToAnalyze || textToAnalyze.length < 50) {
       setError(lang === 'vi' ? 'Vui lòng nhập tối thiểu 50 ký tự.' : 'Please enter at least 50 characters.');
       return;
@@ -297,8 +307,12 @@ export default function Plagiarism() {
                 <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="font-bold text-slate-700">Similarity Report</h3>
-                    <div className={`px-4 py-1 rounded-full text-xs font-bold border ${result.overallSimilarity > 20 ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'}`}>
-                      {result.overallSimilarity > 20 ? 'Action Recommended' : 'Low Risk'}
+                    <div className={`px-4 py-1 rounded-full text-xs font-bold border ${
+                      result.overallSimilarity <= 30 ? 'bg-green-50 text-green-600 border-green-100' : 
+                      result.overallSimilarity <= 60 ? 'bg-blue-50 text-blue-600 border-blue-100' : 
+                      'bg-red-50 text-red-600 border-red-100'
+                    }`}>
+                      {result.overallSimilarity <= 30 ? 'Low Risk' : result.overallSimilarity <= 60 ? 'Moderate' : 'High Risk'}
                     </div>
                   </div>
 

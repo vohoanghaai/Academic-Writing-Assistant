@@ -1,8 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Loader2, ShieldCheck, AlertCircle, CheckCircle2, RefreshCw, Upload, Sparkles } from 'lucide-react';
 import LoadingIndicator from '../components/LoadingIndicator';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 import { getShortErrorCode } from '../utils/errorMapping';
 
@@ -19,6 +19,16 @@ export default function AIDetect() {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.text) {
+      setText(location.state.text);
+      handleAnalyze(location.state.text);
+      // Clear state to prevent loop on reload
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
@@ -52,7 +62,7 @@ export default function AIDetect() {
     }
   };
 
-  const handleAnalyze = async (textContent?: string) => {
+  const handleAnalyze = async (textContent?: string | any) => {
     const textToAnalyze = typeof textContent === 'string' ? textContent : text;
     if (!textToAnalyze || textToAnalyze.length < 50) {
       setError(lang === 'vi' ? 'Vui lòng nhập tối thiểu 50 ký tự.' : 'Please enter at least 50 characters.');
@@ -153,7 +163,7 @@ export default function AIDetect() {
   const getRiskColor = (level: string) => {
     switch (level) {
       case 'High': return 'text-red-600 bg-red-50 border-red-100';
-      case 'Medium': return 'text-orange-600 bg-orange-50 border-orange-100';
+      case 'Medium': return 'text-blue-600 bg-blue-50 border-blue-100';
       default: return 'text-green-600 bg-green-50 border-green-100';
     }
   };
@@ -409,11 +419,11 @@ export default function AIDetect() {
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className={`text-center p-4 rounded-2xl ${result.humanScore > 60 ? 'bg-blue-50 text-blue-600' : (result.humanScore <= 60 && result.aiScore <= 40 ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-700')}`}>
+                    <div className={`text-center p-4 rounded-2xl ${result.humanScore >= 70 ? 'bg-green-50 text-green-600' : result.humanScore >= 40 ? 'bg-blue-50 text-blue-600' : 'bg-red-50 text-red-600'}`}>
                       <div className="text-3xl font-black">{result.humanScore}%</div>
                       <div className="text-[10px] uppercase font-bold mt-1">Human</div>
                     </div>
-                    <div className={`text-center p-4 rounded-2xl ${result.aiScore > 40 ? 'bg-red-50 text-red-600' : (result.humanScore <= 60 && result.aiScore <= 40 ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-700')}`}>
+                    <div className={`text-center p-4 rounded-2xl ${result.aiScore >= 70 ? 'bg-red-50 text-red-600' : result.aiScore >= 40 ? 'bg-blue-50 text-blue-600' : 'bg-green-50 text-green-600'}`}>
                       <div className="text-3xl font-black">{result.aiScore}%</div>
                       <div className="text-[10px] uppercase font-bold mt-1">AI Gen</div>
                     </div>
