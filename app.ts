@@ -33,19 +33,52 @@ let ai: any = null;
 
 async function getAI() {
   if (ai) return ai;
-  
-  // We must delete these GCP environment variables so the Google Auth Library
-  // does not try to use Vertex AI automatically instead of the standard Gemini API
-  delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  delete process.env.GOOGLE_CREDENTIALS_JSON;
-  delete process.env.GOOGLE_CLOUD_PROJECT;
-  delete process.env.GCLOUD_PROJECT;
-  delete process.env.VERTEX_PROJECT_ID;
-
   const { GoogleGenAI } = await import('@google/genai');
 
+  const apiKey = process.env.GEMINI_API_KEY;
+
+  // Process Vertex JSON auth if provided via env var (common in Vercel/Render)
+  if (!apiKey && process.env.GOOGLE_CREDENTIALS_JSON) {
+    try {
+      const fs = await import('fs');
+      const os = await import('os');
+      const path = await import('path');
+      const tempPath = path.join(os.tmpdir(), 'vertex-key.json');
+      fs.writeFileSync(tempPath, process.env.GOOGLE_CREDENTIALS_JSON);
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = tempPath;
+    } catch (err) {
+      console.error('Failed to write Vertex JSON temp file:', err);
+    }
+  }
+
+  const hasVertexAuth = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+
+  if (!apiKey && hasVertexAuth) {
+    console.log('Initialized using Vertex AI Credentials');
+    const project = process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+    const location = process.env.VERTEX_LOCATION || 'us-central1';
+    
+    if (project) {
+       ai = new GoogleGenAI({ vertexai: { project, location } });
+    } else {
+       ai = new GoogleGenAI({ vertexai: true });
+    }
+    return ai;
+  }
+
+  // Standard API key path - prevent accidental Vertex auto-trigger if explicitly using GEMINI_API_KEY
+  if (apiKey) {
+    delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    delete process.env.GOOGLE_CREDENTIALS_JSON;
+    delete process.env.GOOGLE_CLOUD_PROJECT;
+    delete process.env.GCLOUD_PROJECT;
+    delete process.env.VERTEX_PROJECT_ID;
+  } else {
+    console.error('CRITICAL: GEMINI_API_KEY and Vertex credentials are both missing.');
+  }
+
   ai = new GoogleGenAI({ 
-    apiKey: process.env.GEMINI_API_KEY || '',
+    apiKey: apiKey || '',
     vertexai: false,
     enterprise: false
   });
