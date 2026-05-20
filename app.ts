@@ -53,6 +53,29 @@ async function getAI() {
   return ai;
 }
 
+async function generateContentWithFallback(aiClient: any, params: any) {
+  const models = ['gemini-3.1-pro-preview', 'gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-3.1-flash'];
+  let lastError;
+  
+  for (const model of models) {
+    try {
+      params.model = model;
+      console.log(`[AI] Attempting request with model: ${model}...`);
+      const response = await aiClient.models.generateContent(params);
+      return response;
+    } catch (error: any) {
+      lastError = error;
+      const status = error?.status || error?.response?.status;
+      console.warn(`[AI] Model ${model} failed (Status: ${status}, Msg: ${error.message}). Falling back to next...`);
+      // Continue to next model on error (e.g. 429 Too Many Requests, 503, or invalid model)
+    }
+  }
+  
+  console.error('[AI] All fallback models failed.');
+  throw lastError;
+}
+
+
 
 // Auth Endpoints
 app.post('/api/auth/login', (req, res) => {
@@ -127,37 +150,72 @@ app.post('/api/ai-detect', async (req, res) => {
   if (!text) return res.status(400).json({ error: 'Text is required' });
 
   try {
-    const prompt = `As an expert linguist and forensic AI detection system, analyze the provided text.
-    You MUST output a strict JSON object responding to these requirements based on an empirical evaluation, not guessing.
+    const prompt = `You are a forensic linguistic analyzer determining the probability of text being AI-generated vs. human-written. 
+    To ensure deterministic, highly consistent results across multiple evaluations of the same text, you MUST follow this precise mathematical scoring rubric.
 
-    Evaluation Methodology:
-    1. Burstiness (Sentence variation): Humans mix very short and very long sentences. AI tends to use uniform sentence lengths.
-    2. Perplexity: AI uses highly predictable word choices. Humans use idiosyncratic phrasing.
-    3. Structural Symmetry: AI often creates perfectly balanced paragraphs and lists.
-    4. Vocabulary Markers: AI frequently uses words like "fosters", "delve", "crucial", "realm", "tapestry", "seamlessly", "testament", "multifaceted", "underscores".
+    CRITICAL: Evaluate the text strictly against these 4 metrics. Start with a baseline AI score of 50, then adjust based on evidence:
 
-    Calculate scores strictly based on these four factors.
+    METRIC 1: Burstiness & Sentence Variance (Max impact: ±25)
+    - AI creates uniform sentence lengths. Humans mix very short (1-5 words) with very long sentences.
+    - If uniform/robotic: add up to +25 AI score.
+    - If highly varied/erratic lengths: subtract up to -25 AI score (more human).
 
-    JSON Output format: 
-    {
-      "humanScore": 80,
-      "aiScore": 20,
-      "riskLevel": "Low",
-      "confidence": 90,
-      "explanation": "Brief forensic justification",
-      "segments": [{"text": "exact sentence that looks like AI", "reason": "brief reason based on methodology"}]
-    }
+    METRIC 2: Lexical Predictability & Vocabulary (Max impact: ±30)
+    - AI overuses specific transition words and academic fluff.
+    - Check for AI catchphrases: "delve", "tapestry", "fosters", "testament", "realm", "crucial", "multifaceted", "seamlessly", "underscores", "in conclusion", "it is important to note".
+    - If 2+ catchphrases present: add +20 to +30 AI score.
+    - If phrasing is highly idiosyncratic, uses conversational slang, or unusual idioms: subtract -20 to -30 AI score (more human).
+    - If text is short and simple with no markers: 0 adjustment.
+
+    METRIC 3: Structural Symmetry (Max impact: ±20)
+    - AI loves perfectly balanced lists, matching paragraph lengths, and predictable "Introduction, Body, Conclusion" structures.
+    - If perfectly balanced and formulaic: add +10 to +20 AI score.
+    - If paragraphs are asymmetrical, structure meanders, or formatting is messy: subtract -10 to -20 AI score.
+
+    METRIC 4: Emotional Depth & Subjectivity (Max impact: ±25)
+    - AI text lacks genuine personal experience, faking it with vague generalities.
+    - If purely informational/neutral without true subjective vulnerability: add +10 to +25 AI score.
+    - If it contains highly specific personal anecdotes, informal formatting, or raw emotion: subtract -15 to -25 AI score.
+
+    SCORING RULES:
+    1. Start at Base AI Score = 50.
+    2. Apply the adjustments from the 4 metrics.
+    3. Final AI Score must be capped between 0 and 100.
+    4. Human Score = 100 - Final AI Score.
+    5. Your 'explanation' MUST be a step-by-step calculation showing exactly how you applied the 4 metrics. Show the math (+X for Metric 1, -Y for Metric 2, etc, Total AI Score: Z).
+    6. Risk Level = 'High' if AI > 70, 'Moderate' if 40-70, 'Low' if < 40.
+    7. Confidence = how clearly the signals match the rubric (0-100).
 
     Text to Analyze:
     ${text.slice(0, 10000)}`;
 
+    const { Type } = await import('@google/genai');
     const ai = await getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateContentWithFallback(ai, {
       contents: prompt,
       config: { 
         responseMimeType: 'application/json',
-        temperature: 0.1 
+        temperature: 0.0, // Strictly deterministic
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            explanation: { type: Type.STRING },
+            humanScore: { type: Type.NUMBER },
+            aiScore: { type: Type.NUMBER },
+            riskLevel: { type: Type.STRING },
+            confidence: { type: Type.NUMBER },
+            segments: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  text: { type: Type.STRING },
+                  reason: { type: Type.STRING }
+                }
+              }
+            }
+          }
+        }
       }
     });
     const jsonStr = response.text?.replace(/```json|```/g, '').trim() || '{}';
@@ -185,11 +243,24 @@ app.post('/api/humanize', async (req, res) => {
 
     Text: ${text}`;
 
+    const { Type } = await import('@google/genai');
     const ai = await getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateContentWithFallback(ai, {
       contents: prompt,
-      config: { responseMimeType: 'application/json' }
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            humanizedText: { type: Type.STRING },
+            changes: { type: Type.STRING },
+            warnings: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          }
+        }
+      }
     });
     const jsonStr = response.text?.replace(/```json|```/g, '').trim() || '{}';
     res.json(JSON.parse(jsonStr));
@@ -225,11 +296,20 @@ app.post('/api/humanize-segments', async (req, res) => {
     Full Text: 
     ${text}`;
 
+    const { Type } = await import('@google/genai');
     const ai = await getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateContentWithFallback(ai, {
       contents: prompt,
-      config: { responseMimeType: 'application/json' }
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            humanizedText: { type: Type.STRING },
+            changes: { type: Type.STRING }
+          }
+        }
+      }
     });
     const jsonStr = response.text?.replace(/```json|```/g, '').trim() || '{}';
     res.json(JSON.parse(jsonStr));
@@ -252,10 +332,23 @@ app.post('/api/plagiarism-check', async (req, res) => {
     
     Text: ${text.slice(0, 1000)}`;
     
-    const queryResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const { Type } = await import('@google/genai');
+    const queryResponse = await generateContentWithFallback(ai, {
       contents: queryPrompt,
-      config: { responseMimeType: 'application/json' }
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            topic: { type: Type.STRING },
+            queries: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            language: { type: Type.STRING }
+          }
+        }
+      }
     });
     const queries = JSON.parse(queryResponse.text?.replace(/```json|```/g, '').trim() || '{}');
 
@@ -295,8 +388,7 @@ app.post('/api/plagiarism-check', async (req, res) => {
     const config: any = { responseMimeType: 'application/json' };
     if (tools.length > 0) config.tools = tools;
 
-    const scanResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const scanResponse = await generateContentWithFallback(ai, {
       contents: scanPrompt,
       config
     });
@@ -328,11 +420,24 @@ app.post('/api/paraphrase', async (req, res) => {
 
     Text: ${text}`;
 
+    const { Type } = await import('@google/genai');
     const ai = await getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    const response = await generateContentWithFallback(ai, {
       contents: prompt,
-      config: { responseMimeType: 'application/json' }
+      config: { 
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            paraphrasedText: { type: Type.STRING },
+            explanation: { type: Type.STRING },
+            citationWarnings: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          }
+        }
+      }
     });
     const jsonStr = response.text?.replace(/```json|```/g, '').trim() || '{}';
     res.json(JSON.parse(jsonStr));
