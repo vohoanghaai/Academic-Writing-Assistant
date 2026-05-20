@@ -334,9 +334,10 @@ app.post('/api/humanize', async (req, res) => {
   try {
     const prompt = `Rewrite the text to sound exceptionally natural, human, and not like an AI. 
     Selected Tone: ${tone || 'Academic'}.
+    CRITICAL: YOU MUST PRESERVE THE EXACT LANGUAGE OF THE ORIGINAL TEXT. If the input is in Vietnamese, the output MUST be in natural Vietnamese. Do NOT translate to English.
     Preserve the original meaning and avoid adding unsupported facts. 
     CRITICAL OBJECTIVE: You must completely bypass AI detection. Your output will be tested by a strict AI detector, and your goal is to achieve an AI score of 0%.
-    - Eliminate all common AI vocabulary (e.g., 'fosters', 'crucial', 'delve', 'moreover', 'not only... but also', 'testament', 'tapestry', 'realm').
+    - Eliminate all common AI vocabulary (e.g., 'fosters', 'crucial', 'delve', 'moreover', 'testament', 'tapestry' or similar Vietnamese fluffy words like 'đóng vai trò quan trọng', 'bức tranh tổng thể', 'có thể thấy').
     - Vary sentence lengths aggressively. Mix very short, punchy sentences with longer, complex ones.
     - Introduce subtle, intentional human-like phrasing or slight conversational imperfections where appropriate.
     - Avoid perfectly balanced clauses and predictable transition words.
@@ -383,7 +384,8 @@ app.post('/api/humanize-segments', async (req, res) => {
     
     const prompt = `You are a talented editor and copywriter. I am providing you with a full text, and a list of specific segments from that text that sound too much like an AI. 
     Your task is to rewrite ONLY those specified segments to sound completely natural and undeniably human, and seamlessly integrate them back into the full text. 
-    CRITICAL OBJECTIVE: The resulting text will be run through a strict AI detector. Your single goal is to ensure the rewritten segments get an AI score of 0%.
+    CRITICAL OBJECTIVE: YOU MUST PRESERVE THE EXACT LANGUAGE OF THE ORIGINAL TEXT. If the input is in Vietnamese, the rewritten segments MUST be in natural Vietnamese. Do NOT translate to English.
+    The resulting text will be run through a strict AI detector. Your single goal is to ensure the rewritten segments get an AI score of 0%.
     - Eliminate all common AI vocabulary (e.g., 'crucial', 'delve', 'moreover', 'testament', 'tapestry').
     - Vary sentence structures aggressively. 
     - Use intentional human-like conversational nuances or slight imperfections.
