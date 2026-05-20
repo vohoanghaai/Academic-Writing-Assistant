@@ -40,6 +40,11 @@ async function getAI() {
   // Process Vertex JSON auth if provided via env var (common in Vercel/Render)
   if (!apiKey && process.env.GOOGLE_CREDENTIALS_JSON) {
     try {
+      const parsed = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+      if (parsed.project_id && !process.env.VERTEX_PROJECT_ID) {
+        process.env.VERTEX_PROJECT_ID = parsed.project_id;
+      }
+
       const fs = await import('fs');
       const os = await import('os');
       const path = await import('path');
@@ -47,11 +52,11 @@ async function getAI() {
       fs.writeFileSync(tempPath, process.env.GOOGLE_CREDENTIALS_JSON);
       process.env.GOOGLE_APPLICATION_CREDENTIALS = tempPath;
     } catch (err) {
-      console.error('Failed to write Vertex JSON temp file:', err);
+      console.error('Failed to parse Vertex JSON or write temp file:', err);
     }
   }
 
-  const hasVertexAuth = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
+  const hasVertexAuth = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.VERTEX_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
 
   if (!apiKey && hasVertexAuth) {
     console.log('Initialized using Vertex AI Credentials');
@@ -61,7 +66,8 @@ async function getAI() {
     if (project) {
        ai = new GoogleGenAI({ vertexai: { project, location } });
     } else {
-       ai = new GoogleGenAI({ vertexai: true });
+       console.warn('WARNING: Could not determine Vertex project ID. Vertex AI might fail to initialize.');
+       ai = new GoogleGenAI({ vertexai: { project: "missing-project-id", location } });
     }
     return ai;
   }
