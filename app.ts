@@ -462,17 +462,16 @@ app.post('/api/plagiarism-check', async (req, res) => {
     
     if (scanDepth === 'deep') {
       scanPrompt = `Act as an advanced academic plagiarism checker. Compare the text against internet sources to detect plagiarism.
-      CRITICAL: Perform a deep, exhaustive search using Google Search. Scour academic domains (e.g., site:edu, site:ac.uk, scholar.google.com), and explicitly find 20-30 online sources.
+      CRITICAL: Perform a deep, exhaustive search using Google Search. Scour academic domains (e.g., site:edu, site:ac.uk, scholar.google.com), and explicitly find 30 online sources.
       IMPORTANT: If the input text is in Vietnamese, you MUST also analyze it for "Translated Plagiarism" (đạo văn dịch) by conceptually translating it to English and cross-referencing global English sources.
       Identify exact, fuzzy, and semantic matches for the claims or sentences.`;
       tools.push({ googleSearch: {} });
-    } else if (scanDepth === 'web') {
-      scanPrompt = `Act as an academic plagiarism checker. Compare the text against live internet sources to detect potential plagiarism.
-      Use Google Search to find exact, fuzzy, or semantic matches. Check for cross-lingual/translated plagiarism as well.`;
-      tools.push({ googleSearch: {} });
     } else {
-      scanPrompt = `Act as an academic plagiarism checker. Compare the text against common knowledge databases and internal templates.
-      Identify exact, fuzzy, and semantic matches. Do not use live search.`;
+      // Quick scan
+      scanPrompt = `Act as an academic plagiarism checker. Compare the text against live internet sources to detect potential plagiarism.
+      Use Google Search to perform a fast baseline check and explicitly find about 10 online sources.
+      Identify exact, fuzzy, and semantic matches for the claims or sentences.`;
+      tools.push({ googleSearch: {} });
     }
 
     scanPrompt += `

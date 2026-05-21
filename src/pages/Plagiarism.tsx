@@ -5,8 +5,8 @@ import LoadingIndicator from '../components/LoadingIndicator';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const scanModes = [
-  { id: 'quick', label: 'Quick Scan', desc: 'Checks internal database and common academic templates only. Fast and secure.' },
-  { id: 'deep', label: 'Deep Scan', desc: 'AI-driven semantic analysis and cross-lingual translation checks. Deepest check.' },
+  { id: 'quick', label: 'Quick Scan', desc: 'Fast baseline check against live internet sources (approx 10 sources).' },
+  { id: 'deep', label: 'Deep Scan', desc: 'Exhaustive semantic & cross-lingual search across global sources (approx 30 sources).' },
 ];
 
 import { getShortErrorCode } from '../utils/errorMapping';
@@ -16,7 +16,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 export default function Plagiarism() {
   const { lang } = useLanguage();
   const [text, setText] = useState('');
-  const [mode, setMode] = useState('deep');
+  const [mode, setMode] = useState('quick');
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [result, setResult] = useState<any>(null);
